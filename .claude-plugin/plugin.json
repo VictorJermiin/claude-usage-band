@@ -1,0 +1,8 @@
+{
+  "name": "usage-band",
+  "version": "0.1.0",
+  "description": "Shows model, effort, folder, git branch, context window fill, context breakdown, rate limits and cost under the Claude Code prompt",
+  "author": { "name": "VictorJermiin" },
+  "repository": "https://github.com/VictorJermiin/claude-usage-band",
+  "types": "./types/index.d.ts"
+}
