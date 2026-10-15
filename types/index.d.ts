@@ -2,7 +2,7 @@ export type Limit = { kind: string; percentUsed: number; resetsAt?: string }
 
 export type Part = { name: string; tokens: number; color: string; kind: string }
 
-export type Breakdown = { parts: Part[]; total: number; max: number; compactAt?: number }
+export type Breakdown = { parts: Part[]; total: number; max: number }
 
 export type Snapshot = {
   model: string

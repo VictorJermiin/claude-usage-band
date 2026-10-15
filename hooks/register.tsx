@@ -41,8 +41,8 @@ function category(name: string, fallback: string): { label: string; color: strin
 }
 
 const LIMIT_NAMES: Record<string, string> = {
-  five_hour: '5h',
-  seven_day: '7d',
+  five_hour: 'session',
+  seven_day: 'weekly',
   spend_limit: 'spend',
 }
 
@@ -100,7 +100,6 @@ function toBreakdown(b: SessionContextBreakdown | undefined): Breakdown | null {
       .map(c => ({ name: c.name, tokens: c.tokens, color: c.color, kind: c.kind })),
     total: b.totalTokens,
     max: b.rawMaxTokens,
-    compactAt: b.autoCompactThreshold,
   }
 }
 
@@ -237,9 +236,6 @@ export const register: Register = on => {
                     </Text>
                   )
                 })}
-          {b === null || b.compactAt === undefined ? null : (
-            <Text dimColor>{`  · compacts in ~${tokens(Math.max(0, b.compactAt - b.total))}`}</Text>
-          )}
         </Box>
       </Box>
     )

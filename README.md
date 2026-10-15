@@ -4,13 +4,13 @@ A Claude Code mod that adds two rows under the prompt, just below the mode line 
 
 ```
   ⏵⏵ auto mode on (shift+tab to cycle)
-  claude-opus-5-5 high  │  myproject ⎇ main  │  5h 23% (resets 2h14m)  7d 41% (resets 3d4h)  │  $1.23
-  ctx ██▒░░░░░░░░░░░░░░░░░░░░░ 12% 119k/1000k  │  ■ chat 91k  ■ tools 19k  ■ skills 6k  ■ sys 3k  · compacts in ~848k
+  claude-opus-5-5 high  │  myproject ⎇ main  │  session 23% (resets 2h14m)  weekly 41% (resets 3d4h)  │  $1.23
+  ctx ██▒░░░░░░░░░░░░░░░░░░░░░ 12% 119k/1000k  │  ■ chat 91k  ■ tools 19k  ■ skills 6k  ■ sys 3k
 ```
 
-**Row 1:** model and effort level, current folder and git branch, rate-limit windows (5-hour / 7-day, with reset times, on subscription accounts) and session cost. Percentages are green, turning yellow at 70% and red at 90%.
+**Row 1:** model and effort level, current folder and git branch, usage limits (`session` for the 5-hour limit, `weekly` for the 7-day one, with reset times, on subscription accounts) and session cost. Percentages are green, turning yellow at 70% and red at 90%.
 
-**Row 2:** the context window: one bar coloured by what fills it, each category in its own colour that matches its label, how full it is (`12% 119k/1000k`), each category's size (`chat` is the conversation itself: your messages, replies and tool results), and how far you are from auto-compact.
+**Row 2:** the context window: one bar coloured by what fills it, each category in its own colour that matches its label, how full it is (`12% 119k/1000k`), each category's size (`chat` is the conversation itself: your messages, replies and tool results).
 
 Both rows update after every turn.
 
