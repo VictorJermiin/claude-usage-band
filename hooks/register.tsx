@@ -6,15 +6,38 @@ import type { Breakdown, Limit, Snapshot } from '../types'
 const snapshot = atom({ plugin: 'usage-band', key: 'snapshot' } as const, null)
 const effort = atom({ plugin: 'usage-band', key: 'effort' } as const, null)
 
-const SHORT_NAMES: Record<string, string> = {
-  'System prompt': 'sys',
-  'System tools': 'tools',
-  'MCP server instructions': 'mcp',
-  'MCP tools': 'mcp tools',
-  'Custom agents': 'agents',
-  'Memory files': 'memory',
-  Skills: 'skills',
-  Messages: 'msgs',
+// Mid-tone colours that read on both dark and light terminals.
+const PALETTE = {
+  model: '#d97757',
+  folder: '#0ea5e9',
+  branch: '#84cc16',
+  ok: '#22c55e',
+  warn: '#eab308',
+  high: '#ef4444',
+}
+
+const EFFORT_COLORS: Record<string, string> = {
+  low: '#94a3b8',
+  medium: '#3b82f6',
+  high: '#a855f7',
+  xhigh: '#d946ef',
+  max: '#ec4899',
+}
+
+// Each context category gets a colour of its own, so neighbours in the bar never blur.
+const CATEGORIES: Record<string, { label: string; color: string }> = {
+  Messages: { label: 'chat', color: '#3b82f6' },
+  'System tools': { label: 'tools', color: '#f59e0b' },
+  'System prompt': { label: 'sys', color: '#8b5cf6' },
+  Skills: { label: 'skills', color: '#10b981' },
+  'MCP server instructions': { label: 'mcp', color: '#ec4899' },
+  'MCP tools': { label: 'mcp tools', color: '#d946ef' },
+  'Memory files': { label: 'memory', color: '#14b8a6' },
+  'Custom agents': { label: 'agents', color: '#f97316' },
+}
+
+function category(name: string, fallback: string): { label: string; color: string } {
+  return CATEGORIES[name] ?? { label: name.toLowerCase(), color: fallback }
 }
 
 const LIMIT_NAMES: Record<string, string> = {
@@ -23,18 +46,12 @@ const LIMIT_NAMES: Record<string, string> = {
   spend_limit: 'spend',
 }
 
-function bar(percent: number, width = 10): string {
-  const filled = Math.max(0, Math.min(width, Math.round((percent / 100) * width)))
-
-  return '█'.repeat(filled) + '░'.repeat(width - filled)
-}
-
 function tokens(n: number): string {
   return n >= 1000 ? `${Math.round(n / 1000)}k` : `${n}`
 }
 
 function color(percent: number): string {
-  return percent >= 90 ? 'red' : percent >= 70 ? 'yellow' : 'green'
+  return percent >= 90 ? PALETTE.high : percent >= 70 ? PALETTE.warn : PALETTE.ok
 }
 
 function resetsIn(limit: Limit, now: number): string {
@@ -94,7 +111,7 @@ function segments(b: Breakdown, width: number): { color: string; text: string }[
   for (const part of b.parts) {
     if (part.kind !== 'used' || part.tokens <= 0 || left <= 0) continue
     const cells = Math.min(left, Math.max(1, Math.round((part.tokens / b.max) * width)))
-    out.push({ color: part.color, text: '█'.repeat(cells) })
+    out.push({ color: category(part.name, part.color).color, text: '█'.repeat(cells) })
     left -= cells
   }
   if (left > 0) out.push({ color: 'inactive', text: '░'.repeat(left) })
@@ -157,53 +174,73 @@ export const register: Register = on => {
     const level = await read($, effort)
     const { Box, Text } = $.ui.resolve(e)
     const ctx = snap.context
+    const b = snap.breakdown
+    // The exact count from the last reply when there is one, the estimate before it.
+    const used = ctx.tokens ?? b?.total
+    const window = ctx.tokens === undefined ? (b?.max ?? ctx.window) : ctx.window
+    const percent = ctx.percent ?? (used === undefined ? undefined : Math.round((used / window) * 100))
     const now = await $.clock.now()
+
+    const sep = <Text dimColor>{'  │  '}</Text>
 
     return (
       <Box flexDirection="column">
         {own}
         <Box>
-          <Text bold>{snap.model}</Text>
-          {level === null ? null : <Text dimColor>{` · ${level}`}</Text>}
-          <Text dimColor>{'  '}</Text>
-          <Text color="cyan">{snap.folder}</Text>
-          {snap.branch === null ? null : <Text color="magenta">{` ⎇ ${snap.branch}`}</Text>}
-          <Text dimColor>{'  ctx '}</Text>
-          {ctx.percent === undefined ? (
-            <Text dimColor>{`— / ${tokens(ctx.window)}`}</Text>
-          ) : (
-            <Text color={color(ctx.percent)}>
-              {`${bar(ctx.percent)} ${ctx.percent}% ${tokens(ctx.tokens ?? 0)}/${tokens(ctx.window)}`}
-            </Text>
+          <Text bold color={PALETTE.model}>{snap.model}</Text>
+          {level === null ? null : (
+            <Text color={EFFORT_COLORS[level] ?? EFFORT_COLORS.medium}>{` ${level}`}</Text>
           )}
-          {snap.rateLimits.map(limit => (
+          {sep}
+          <Text color={PALETTE.folder}>{snap.folder}</Text>
+          {snap.branch === null ? null : <Text color={PALETTE.branch}>{` ⎇ ${snap.branch}`}</Text>}
+          {snap.rateLimits.length === 0 ? null : sep}
+          {snap.rateLimits.map((limit, i) => (
             <Text key={limit.kind}>
-              <Text dimColor>{`  ${LIMIT_NAMES[limit.kind] ?? limit.kind} `}</Text>
-              <Text color={color(limit.percentUsed)}>{`${limit.percentUsed}%`}</Text>
+              <Text dimColor>{`${i === 0 ? '' : '  '}${LIMIT_NAMES[limit.kind] ?? limit.kind} `}</Text>
+              <Text bold color={color(limit.percentUsed)}>{`${limit.percentUsed}%`}</Text>
               <Text dimColor>{resetsIn(limit, now)}</Text>
             </Text>
           ))}
-          {snap.costUsd === undefined ? null : <Text dimColor>{`  $${snap.costUsd.toFixed(2)}`}</Text>}
+          {snap.costUsd === undefined ? null : sep}
+          {snap.costUsd === undefined ? null : <Text>{`$${snap.costUsd.toFixed(2)}`}</Text>}
         </Box>
-        {snap.breakdown === null ? null : (
-          <Box>
-            {segments(snap.breakdown, 24).map((seg, i) => (
-              <Text key={`seg${i}`} color={seg.color as Color}>{seg.text}</Text>
-            ))}
-            {snap.breakdown.parts
-              .filter(part => part.kind === 'used' && part.tokens > 0)
-              .sort((x, y) => y.tokens - x.tokens)
-              .map(part => (
-                <Text key={part.name}>
-                  <Text color={part.color as Color}>{'  ■ '}</Text>
-                  <Text dimColor>{`${SHORT_NAMES[part.name] ?? part.name.toLowerCase()} ${tokens(part.tokens)}`}</Text>
-                </Text>
+        <Box>
+          <Text dimColor>{'ctx '}</Text>
+          {b === null
+            ? null
+            : segments(b, 24).map((seg, i) => (
+                <Text key={`seg${i}`} color={seg.color as Color} dimColor={seg.color === 'inactive'}>{seg.text}</Text>
               ))}
-            {snap.breakdown.compactAt === undefined ? null : (
-              <Text dimColor>{`  · compacts in ~${tokens(Math.max(0, snap.breakdown.compactAt - snap.breakdown.total))}`}</Text>
-            )}
-          </Box>
-        )}
+          {percent === undefined ? (
+            <Text dimColor>{` — / ${tokens(window)}`}</Text>
+          ) : (
+            <Text>
+              <Text bold color={color(percent)}>{` ${percent}%`}</Text>
+              <Text>{` ${tokens(used ?? 0)}`}</Text>
+              <Text dimColor>{`/${tokens(window)}`}</Text>
+            </Text>
+          )}
+          {b === null ? null : sep}
+          {b === null
+            ? null
+            : b.parts
+                .filter(part => part.kind === 'used' && part.tokens > 0)
+                .sort((x, y) => y.tokens - x.tokens)
+                .map((part, i) => {
+                  const { label, color: hue } = category(part.name, part.color)
+
+                  return (
+                    <Text key={part.name}>
+                      <Text color={hue as Color}>{`${i === 0 ? '' : '  '}■ ${label}`}</Text>
+                      <Text dimColor>{` ${tokens(part.tokens)}`}</Text>
+                    </Text>
+                  )
+                })}
+          {b === null || b.compactAt === undefined ? null : (
+            <Text dimColor>{`  · compacts in ~${tokens(Math.max(0, b.compactAt - b.total))}`}</Text>
+          )}
+        </Box>
       </Box>
     )
   })

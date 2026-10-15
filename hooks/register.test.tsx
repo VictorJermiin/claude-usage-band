@@ -48,7 +48,7 @@ test('footer rows show usage and context breakdown', async ($, on) => {
 
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await $.ui.mount({ plugin: 'usage-band', surface, component: 'PromptHint', props: { isDraft: false, isWorking: false, hint: '⏵⏵ auto mode on' } })
-    for (const text of [/msgs 70k/, /sys 6k/, /compacts in ~83k/, /auto mode on/, /claude-opus-5-5/, /high/, /project/, /main/, /42% 84k\/200k/, /91%/, /\$1\.23/]) {
+    for (const text of [/chat 70k/, /sys 6k/, /compacts in ~83k/, /auto mode on/, /claude-opus-5-5/, /high/, /project/, /main/, /ctx/, /42% 84k\/200k/, /91%/, /\$1\.23/]) {
       expect(await ui.find({ type: 'Text', text })).toBeDefined()
     }
     await ui.unmount()
