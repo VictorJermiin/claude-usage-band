@@ -46,8 +46,19 @@ const LIMIT_NAMES: Record<string, string> = {
   spend_limit: 'spend',
 }
 
+const BAR_WIDTH = 24
+
+// Terminal cells a plain string takes; every character the rows draw is one cell wide.
+function width(text: string): number {
+  return [...text].length
+}
+
+// Always in thousands: whole k from 1000 up, one decimal below it (631 → 0.6k).
 function tokens(n: number): string {
-  return n >= 1000 ? `${Math.round(n / 1000)}k` : `${n}`
+  if (n <= 0) return '0k'
+  if (n >= 950) return `${Math.round(n / 1000)}k`
+
+  return `${Math.max(0.1, Math.round(n / 100) / 10).toFixed(1)}k`
 }
 
 function color(percent: number): string {
@@ -181,6 +192,17 @@ export const register: Register = on => {
     const now = await $.clock.now()
 
     const sep = <Text dimColor>{'  │  '}</Text>
+    const ctxText =
+      percent === undefined
+        ? ` — / ${tokens(window)}`
+        : ` ${percent}% ${tokens(used ?? 0)}/${tokens(window)}`
+
+    // Pad the first part of each row to one width, so the next │ lines up across both rows.
+    const topLeft = width(
+      `${snap.model}${level === null ? '' : ` ${level}`}  │  ${snap.folder}${snap.branch === null ? '' : ` ⎇ ${snap.branch}`}`,
+    )
+    const bottomLeft = width(`ctx ${b === null ? '' : ' '.repeat(BAR_WIDTH)}${ctxText}`)
+    const column = Math.max(topLeft, bottomLeft)
 
     return (
       <Box flexDirection="column">
@@ -193,6 +215,7 @@ export const register: Register = on => {
           {sep}
           <Text color={PALETTE.folder}>{snap.folder}</Text>
           {snap.branch === null ? null : <Text color={PALETTE.branch}>{` ⎇ ${snap.branch}`}</Text>}
+          <Text>{' '.repeat(column - topLeft)}</Text>
           {snap.rateLimits.length === 0 ? null : sep}
           {snap.rateLimits.map((limit, i) => (
             <Text key={limit.kind}>
@@ -208,11 +231,11 @@ export const register: Register = on => {
           <Text dimColor>{'ctx '}</Text>
           {b === null
             ? null
-            : segments(b, 24).map((seg, i) => (
+            : segments(b, BAR_WIDTH).map((seg, i) => (
                 <Text key={`seg${i}`} color={seg.color as Color} dimColor={seg.color === 'inactive'}>{seg.text}</Text>
               ))}
           {percent === undefined ? (
-            <Text dimColor>{` — / ${tokens(window)}`}</Text>
+            <Text dimColor>{ctxText}</Text>
           ) : (
             <Text>
               <Text bold color={color(percent)}>{` ${percent}%`}</Text>
@@ -220,6 +243,7 @@ export const register: Register = on => {
               <Text dimColor>{`/${tokens(window)}`}</Text>
             </Text>
           )}
+          <Text>{' '.repeat(column - bottomLeft)}</Text>
           {b === null ? null : sep}
           {b === null
             ? null
