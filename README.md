@@ -36,3 +36,7 @@ Answer `y` to add the marketplace, then pick a scope (user scope shows it in eve
 claude plugin validate .
 claude plugin test .
 ```
+
+## License
+
+MIT — see [LICENSE](LICENSE).
